@@ -1,0 +1,111 @@
+import numpy as np
+import pandas as pd
+import matplotlib
+import matplotlib.pyplot as plt
+
+#cleaning up the data
+#read in the csv
+avocados = pd.read_csv('avocado _3_.csv')
+#make a copy of the dataset so that we don't directly alter the dataset, just in case
+avocados_2 = avocados.copy()
+
+#convert the dates to the datetime value
+avocados_2['Date'] = pd.to_datetime(avocados_2['Date'])
+#remove the year 2018 from the dataset
+cleaned_avo = avocados_2[avocados_2['Date'].dt.year < 2018]
+
+#remove any values below zero
+cleaned_avo = cleaned_avo[cleaned_avo['Number_Avocados_Sold'] >= 0]
+
+#plot 1
+#filter only regular avocados
+reg_avos = cleaned_avo[cleaned_avo['type'] == 'conventional']
+#filter only organic avocados
+org_avos = cleaned_avo[cleaned_avo['type'] == 'organic']
+
+#group the avocados by year using the dt function, then sum up the the total sales
+reg_avos = reg_avos.groupby([reg_avos['Date'].dt.year])['Number_Avocados_Sold'].sum()
+#do the same for organic avocados
+org_avos = org_avos.groupby([org_avos['Date'].dt.year])['Number_Avocados_Sold'].sum()
+
+#create the figure
+fig = plt.figure()
+#create subplots so we can see the two types next to each other
+reg = fig.add_subplot(1, 2, 1)
+org = fig.add_subplot(1, 2, 2)
+
+#create a bar plot for each to show the total number of each avocado sold each year
+reg.bar(reg_avos.index, reg_avos.values)
+org.bar(org_avos.index, org_avos.values, color = 'green')
+
+#create titles for each one
+reg.set_title('Conventional Avocado Sales')
+org.set_title('Organic Avocado Sales')
+
+#set the labels for each one
+reg.set_xlabel('Year')
+reg.set_ylabel('Number Avocados Sold')
+org.set_xlabel('Year')
+org.set_ylabel('Number Avocados Sold')
+
+#set tight layout and show
+plt.tight_layout()
+plt.show()
+
+#plot 2
+#group all of the data by region
+city_sales = cleaned_avo.groupby(['region', cleaned_avo['Date'].dt.year])['Number_Avocados_Sold'].sum().unstack()
+#find the regions with the most sales
+most_sales= city_sales.sum(axis = 1).nlargest(5).index
+#extract the data from the city sales DataFrame for only the top 5 regions
+top_city_sales = city_sales.loc[most_sales]
+
+#create the figure
+plt.figure()
+#create a bar plot that shows each regions yearly sales side by side
+top_city_sales.plot(kind = 'bar')
+#set the title and labels
+plt.title('Top Regional Sales Per Year')
+plt.xlabel('Region')
+plt.ylabel('Avocado Sales')
+#set the tight layout and show
+plt.tight_layout()
+plt.show()
+
+
+#plot 3
+#take out only the values assocaite with each required city
+chicago_sales = cleaned_avo[cleaned_avo['region'] == 'Chicago']
+ny_sales= cleaned_avo[cleaned_avo['region'] == 'NewYork']
+sf_sales= cleaned_avo[cleaned_avo['region'] == 'SanFrancisco']
+
+#group the sales data for each month by year and month. This will create a series
+#that contains each months average price through the three year period
+chicago_monthly = chicago_sales.groupby([chicago_sales['Date'].dt.year, 
+                                        chicago_sales['Date'].dt.month])['AveragePrice'].mean()
+ny_monthly = ny_sales.groupby([ny_sales['Date'].dt.year, 
+                                        ny_sales['Date'].dt.month])['AveragePrice'].mean()
+sf_monthly = sf_sales.groupby([sf_sales['Date'].dt.year, 
+                                        sf_sales['Date'].dt.month])['AveragePrice'].mean()
+
+#create a figure. I had to make it bigger than standard otherwise everything
+#was too compressed
+plt.figure(figsize = (12, 8))
+#plot each of the three city Series on the same line plot so we can directly compare them
+chicago_monthly.plot(label = 'Chicago')
+ny_monthly.plot(label = 'New York')
+sf_monthly.plot(label = 'San Francisco')
+#create a title and labels for the graph
+plt.title('City Average Avocado Prices')
+plt.xlabel('Year, month')
+plt.ylabel('Average Price of Avocados')
+#set the xtick rotation for readability
+plt.xticks(rotation = 60)
+#set tight layout, display the legend, then show the graph.
+plt.tight_layout()
+plt.legend()
+plt.show()
+#this graph only shows a label every six months, but every month is still
+#represented in the graph if data was available for it.
+
+
