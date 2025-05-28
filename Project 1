@@ -1,0 +1,273 @@
+import csv
+import numpy as np
+
+#problem 0
+#open the names csv
+with open('names.csv', 'r') as names:
+    #initalize the names dict
+    names_dict = {}
+    #read in the csv file
+    csv_reader = csv.reader(names)
+    #iterate through each row in the csv and assign each instrument (row[1]) to
+    #each name (row[0])
+    for row in csv_reader:
+        names_dict[row[0]]= row[1]
+#delete the first value from the dictionary as this is just student:instrument
+del names_dict['student']
+#print the dictionary
+print(names_dict)
+    
+#open the sales csv
+with open('sales.csv', 'r') as sales:
+    #initalize the sales dictionary
+    sales_dict = {}
+    #read in the csv file
+    csv_reader2 = csv.reader(sales)
+    #iterate through each row in the csv
+    for row in csv_reader2:
+        #assign variable names to the names and sales for ease of access
+        name = row[0]
+        sale = row[1]
+        #since there are repeats, check if each name is already in the dictionary.
+        #if so, append the current sale to the name
+        if name in sales_dict:
+            sales_dict[name] += f', {sale}'
+        #otherwise, assign this sale as the value for the name
+        else:
+            sales_dict[name] = sale
+            
+#iterate through each key, value pair in the sales dictionary
+for key, value in sales_dict.items():
+    #split the sales into a list of strings for ease of access in later problems
+    x = value.split(',')
+    #assign each key to the current sales list
+    sales_dict[key] = x
+
+#delete the first value from the dictionary as this is just student:sale
+del sales_dict['student']
+#print the sales dict
+print(' ')
+print(sales_dict)
+
+#problem 1
+#initalize a variable for total
+total_bags = 0
+#loop through each value in the sales dictionary. Each value is a list
+for value in sales_dict.values():
+    #loop through each list
+    for sale in value:
+        #if the string 'popcorn' is in a list value, perform the following code
+        if 'popcorn' in sale:
+            #split the first character, the number of bags, from the rest of the string
+            #assign this value to num_bags variable
+            num_bags = int(sale.split()[0])
+            #add the current number of bags to the total
+            total_bags += num_bags
+
+#print the total number of bags
+print(' ')
+print(total_bags, 'bags of popcorn were sold')
+print(' ')
+
+#problem 2a
+#this is the current value of each bag of popcorn. This can be changed if needed
+bag_value = 3
+#this is the total amount of money made from popcorn sales
+total_bag_money = np.multiply(total_bags, bag_value)
+#this is the total number of students. The -1 is included at the end because
+#the first key, value pair in the dictionary is just student:instrument
+total_students = len(names_dict)
+#this is the calculation for the mean amount of money from popcorn sales
+mean_bag_money = np.divide(total_bag_money, total_students)
+#print the mean
+print(f'Average sale: ${mean_bag_money:.2f}')
+
+
+#problem 2b
+# initalize a total_donations variable. This whole function will be analogous
+#to the popcorn sales one
+total_donations = 0
+for value in sales_dict.values():
+    #loop through each list
+    for sale in value:
+        #if the string '$' is in a list value, perform the following code
+        if '$' in sale:
+            #split the dollar sign from the beginning and take everything else
+            #from the string
+            dollar_amount = int(sale.split()[0][1:])
+            #add this amount to the donation total
+            total_donations += dollar_amount    
+mean_donation = np.divide(total_donations, total_students)
+print(f'Average donation: ${mean_donation}')
+
+#problem 2c
+print(f'Total popcorn profit: ${total_bag_money}')
+
+#problem 2d
+print(f'Total donations: ${total_donations}')
+
+#problem 23
+total_profits = np.add(total_bag_money, total_donations)
+print(f'Total profit: ${total_profits}')
+print(' ')
+#problem 3
+#create an aggregate sales dictionary to calculate the total amount each
+#student raised
+aggregate_sales = {}
+#loop through every key, value pair in the sales dictionary
+for name, sales in sales_dict.items():
+    #loop through each sales list for each srudent
+    for sale in sales:
+        #if the sale was a bag of popcorn,
+        if 'popcorn' in sale:
+            #find the number of bags sold by splitting the first character in the
+            #string, which is the number
+            num_bags = int(sale.split()[0])
+            #multiply the number of bags by the bag value to get the total 
+            #money from bags
+            bag_money = np.multiply(num_bags, bag_value)
+            #if the name is already in the dictionary,
+            if name in aggregate_sales:
+                #add the current sale of bags to the students total
+                aggregate_sales[name] += bag_money
+            #otherwise
+            else:
+                #assign the current sale as the initial value for the student
+                aggregate_sales[name] = bag_money
+        #if the sale was a donation
+        if '$' in sale:
+            #split the dollar sign from the donation amount to find the 
+            #integer value
+            dollar_amount = int(sale.split()[0][1:])
+            #if the name is already in the dictionary
+            if name in aggregate_sales:
+                #add the donation to their total
+                aggregate_sales[name] += dollar_amount
+            #otherwise,
+            else:
+                #set the initial value for the student to that dollar amount
+                aggregate_sales[name] = dollar_amount
+            
+#create a set of all the instruments so that there are no repeats. Sort for ease
+#of assignment later
+instruments_set = sorted(set(names_dict[name] for name in names_dict))
+#reassign the set to a list
+instruments = [instrument for instrument in instruments_set]
+
+#create an array out of the list
+instruments_array = np.array(instruments)
+#create a list of all the names
+names_list = [name for name in names_dict]
+#create an array from the list of names
+names_array = np.array(names_list)
+#create a variable for ease of access for the size of both axes of the larger array
+axis_0_size = len(names_dict) + 1
+axis_1_size = len(instruments) + 1
+#create the larger array filled with 0's. This is just to initialize the
+#array with the right dimensions, and I will assign the proper values from the
+#smaller array to the axes next
+band_array = np.zeros((axis_0_size, axis_1_size), dtype = object)
+
+#assign the instruments to the header of each column. The top left corner must
+#remain empty so that there is no intersect of the names and the first instrument
+band_array[0, 1:] = instruments_array
+#assign each name to the first value in each column
+band_array[1:, 0] = names_list
+
+#loop through each key value pair in the names dictionary
+for name, instrument in names_dict.items():
+    #find the index of the current name being searched in the names list.
+    #assign this to the row_index variable to be searched for each total sale
+    row_index = names_list.index(name) + 1
+    #find the index of the current instrument in the instruments list and assign
+    #it to the appropriate column in the array
+    column_index = instruments.index(instrument) + 1
+    #find the amount of money each student raised in the aggregate sales dictionary
+    money_raised = aggregate_sales.get(name, 0)
+    #assign the amount of money raised by the student to their appropriate row and column
+    band_array[row_index, column_index] = money_raised
+    
+print(' ')
+print(band_array)
+print(' ')
+
+#set up the print statement
+print('Sales by instrument:')
+#go through every value in the range of the length of the array
+for i in range(1, axis_1_size):
+    #Find the current instrument that is being added up
+    instrument = band_array[0, i]
+    #find the values of sales in the current instrument's columns
+    instrument_column = band_array[1:, i]
+    #sum up the values in the column to get the total instrument sales
+    instrument_sales = np.sum(instrument_column, dtype = int)
+    #print each instruments sales
+    print(f'{instrument}: ${instrument_sales}')
+    
+print(' ')
+
+#problem4
+#create a list to store the averages of each instrument. Im making a list for
+#this one so that i can sort it, since the output has to be sorted
+instrument_averages = []
+#print the header
+print('Average sales by instrument:')
+#loop through the array's column headers
+for i in range(1, axis_1_size):
+    #this code is essentially the same as the previous question in terms of
+    #identifying the instrument and its sales in the column below it, then
+    #summing those sales
+    instrument = band_array[0, i]
+    instrument_column = band_array[1:, i]
+    instrument_sales = np.sum(instrument_column, dtype = int)
+    #initialize a variable to find how many students play each instrument
+    instrument_students = 0
+    #for each sale in the column of the current instrument,
+    for sale in instrument_column:
+        #only add a student to the instruments total if they had a sale for that
+        #instrument.
+        if sale > 0:
+            instrument_students += 1
+    #divide the total sale for each instrument by the number of students
+    #that play the instrument
+    instrument_average = np.divide(instrument_sales, instrument_students)
+    #add each instrument and its average to the list as a tuple so that it
+    #can be sorted
+    instrument_averages.append((instrument, instrument_average))
+
+#used the sort function for complex lists to sort the values, then reverse it
+#so the greatest value is first
+instrument_averages.sort(key = lambda x: x[1], reverse = True)
+
+#for each tuple in the list
+for instrument, average in instrument_averages:
+    #print the instrument and its average sale in the proper format
+    print(f'{instrument}: ${average:.2f}')
+    
+print(' ')
+
+#problem 5
+#create a list to store each student's sales, similar to the last problem
+#so it can be sorted
+student_sales_list = []
+#go through the arrays rows
+for i in range(1, axis_0_size):
+    #find the student currently being looked at
+    student = band_array[i, 0]
+    #isolate the entire row associated with the student
+    student_row = band_array[i, 1:]
+    #find the student's actual sale out of the whole row
+    for sale in student_row:
+        #the students sale is the only non-zero value in the row
+        if sale > 0:
+            student_sale = sale
+    #append the student and their sale to the list as a tuple
+    student_sales_list.append((student, student_sale))
+#use the same sorting function as the last problem to sort the student list
+student_sales_list.sort(key = lambda x: x[1], reverse = True)
+#create the header
+print('Three students that raised the most money:')
+#print only the first three values in the sorted students list in the proper
+#format
+for student, sale in student_sales_list[:3]:
+    print(f'{student}: ${sale:.2f}')
