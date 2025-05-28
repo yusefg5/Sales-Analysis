@@ -1,0 +1,198 @@
+#import pandas
+import pandas as pd
+
+#read in the csv file
+bikes = pd.read_csv('Divvy.csv')
+
+#problem 1
+#create a list of the months. I originally put all of these straight into the
+#bikes_months dictionary, but changed it to this to shorten the code and make
+#it easier to read
+months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun']
+#create the bikes_months dictionary to store the e bikes and classical bikes
+#for each month
+bikes_months = {month: {'e_bike_count': 0, 'c_bike_count': 0} for month in months}
+
+#I used the iterrows function multiple times throughout the assignment to extract
+#information from specific rows, which I found very helpful. Here, I assigned the month
+#and bike type variables, then used those to assign to the bikes_months dictionary
+for index, row in bikes.iterrows():
+    month = row['month']
+    bike_type = row['rideable_type']
+    if bike_type == 'electric_bike':
+        bikes_months[month]['e_bike_count'] += 1
+    elif bike_type == 'classic_bike':
+        bikes_months[month]['c_bike_count'] += 1
+
+#create the output dataframe
+output = pd.DataFrame(columns = ['Month', 'e_bikes', 'e_to_c_ratio'])
+#find the ratio of ebikes to cbikes
+for month in months:
+    e_bikes = bikes_months[month]['e_bike_count']
+    c_bikes = bikes_months[month]['c_bike_count']
+    ratio = f'{e_bikes}:{c_bikes}'
+    
+    #had to add ignore_index onto the end because I got an error saying that
+    #had to be included to append a dictionary
+    output = output.append({'Month': month, 'e_bikes': e_bikes,
+                            'e_to_c_ratio': ratio}, ignore_index = True)
+
+#output to csv
+#included index = False so the rows weren't labeled by number
+output.to_csv('E_bike_rentals_by_month.csv', index = False)
+
+#problem 2
+#created a dictionary to store the monthly station rentals, used the previous months list
+#for shorthand
+station_rentals = {month: {} for month in months}
+#used the iterrows function again, this time to find the month and starting stations
+for index, row in bikes.iterrows():
+    month = row['month']
+    start_station = row['start_station_name']
+    #added 1 to the station totals each time a station was found in the dataset
+    if month in station_rentals:
+        if start_station in station_rentals[month]:
+            station_rentals[month][start_station]+= 1
+        else:
+            station_rentals[month][start_station] = 1
+
+#created a results dataframe
+station_results = pd.DataFrame(columns = ['Month', 'Station', 'Rentals'])
+
+#sorted the stations in descending order using the sort function
+for month in months:
+    station_counts = station_rentals[month]
+    sorted_stations = sorted(station_counts.items(), key = lambda x: x[1], reverse = True)
+    
+    #created a list of only the top three stations, then only output that
+    top_three = sorted_stations[:3]
+    for station, count in top_three:
+        station_results = station_results.append({'Month': month, 'Station': station,
+                                                 'Rentals': count}, ignore_index = True)
+    
+station_results.to_csv('monthly_top_renting_stations.csv', index = False)
+
+#problem 3
+#first, I want to only look at the data from saturdays and sundays.
+sat_sun = bikes[bikes['weekday'].isin(['Sat', 'Sun'])]
+#now, I want to group the data by station and month so that I can more easily
+#access it. To do this I'll use the groupby function from class
+month_start_wkday = sat_sun.groupby(['month', 'start_station_name', 'weekday'])
+month_end_wkday = sat_sun.groupby(['month', 'end_station_name', 'weekday'])
+#from here I can more easily calculate the total rentals and returns. If i use
+#the unstack function on the dataframe created by groupby, the data will line up
+#to where this will work. I created two separate ones, one for rentals
+#and one for returns
+rentals_ustack = month_start_wkday.size().unstack(fill_value = 0)
+returns_ustack = month_end_wkday.size().unstack(fill_value = 0)
+
+#found the mean of the rentals, then created a dataframe with the right columns
+average_rentals = rentals_ustack.mean(axis = 1).reset_index()
+average_rentals.columns = ['month', 'station', 'Average # rentals']
+
+#did the same for returns
+average_returns = returns_ustack.mean(axis = 1).reset_index()
+average_returns.columns = ['month', 'station', 'Average # returns']
+
+#merged the rentals and returns to create one large dataframe with all the information,
+#merged it by the month and the name of the station
+average_rrs = pd.merge(average_rentals, average_returns, on = ['month', 'station'])
+
+#created an output dataframe with the proper column headers
+out_frame = pd.DataFrame(columns = ['Month', 'station', 'weekday', 'Average # rentals',
+                                    'Average # returns'])
+#used the iterrows function to find the months and stations
+for index, row in average_rrs.iterrows():
+    month = row['month']
+    station = row['station']
+    #only searched for the saturdays and sundays
+    for day in ['Sat', 'Sun']:
+        #assigned rentals variable to the proper column
+        rentals = row['Average # rentals']
+        #assigned returns to proper column
+        returns = row['Average # returns']
+        #added the data to the dataframe
+        out_frame = out_frame.append({'Month': month, 'start_station_name': station, 
+                                      'weekday': day,'Average # rentals': rentals,
+                                      'Average # returns': returns}, ignore_index = True)
+#output the dataframe to a csv
+out_frame.to_csv('monthly_bike_rental_return_by_station.csv', index = False)
+
+
+#problem 4
+#grouped all of the data by the weekday
+grouped_days = bikes.groupby('weekday')
+
+#found the average length of the trip by day
+average_length = grouped_days['trip_minutes'].mean()
+#found the average distance of the trip by day
+average_distance = grouped_days['trip_distance'].mean()
+
+#created a dataframe to store the averages
+average_length_distance = pd.DataFrame({'Average Time (minutes)': average_length, 
+                                        'Average distance(kilometers)': average_distance})
+
+#created a list to store the order of the days so i could reindex the dataframe to be in order
+day_order = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun']
+
+#created the column headers for the dataframe
+average_length_distance.columns = ['Average Time(minutes)', 'Average Distance(kilometers)']
+#reindexed the data so it was in order by day
+average_length_distance = average_length_distance.reindex(day_order)
+
+#output the data to a csv. I was having trouble making a day column in the actual
+#dataframe, so I used the csv indexes to store the days
+average_length_distance.to_csv('duration_of_rides.csv', index = True, index_label = 'Day')
+
+#problem 5
+#found only casual users
+casual_users = bikes[bikes['member_casual'] == 'casual']
+#created a list to store monthly income. These will be stored as tuples
+monthly_income = []
+#created a dictionary to store montly station income, since there are more than 2
+#values here
+station_income = {}
+
+#used the iterrows function to find the duration, month and station of the current
+#entry
+for index, row in casual_users.iterrows():
+    duration = row['trip_minutes']
+    month = row['month']
+    station = row['start_station_name']
+    #assigned the base fare to trips less than thiry minutes
+    if duration <= 30:
+        price = 3.30
+    #assigned the increase fare to trips greater than thirty minutes
+    elif duration > 30:
+        extra_time = duration - 30
+        price = 3.30 +(.15 * extra_time)
+    
+    #appended a tuple of the current month and trip price to the monthly income 
+    #list. This will be summed to get the total monthly income
+    monthly_income.append((month, price))
+    
+    #checked if each station was already in the stations dictionary. If it was, added
+    #the price to the stations total, otherwise assigned the first value to that
+    #price
+    if station in station_income:
+        station_income[station] += price
+    else:
+        station_income[station] = price
+
+#created a dataframe to store the montly income data
+monthly_df = pd.DataFrame(monthly_income, columns = ['Month', 'Income'])
+#grouped the data by month, then summmed the income row to get a total
+monthly_df = monthly_df.groupby('Month')['Income'].sum().reset_index()
+
+#created a dataframe to store the station income data. I had to turn the dictionary
+#into a list of items so that each row would output in the proper format
+station_df = pd.DataFrame(list(station_income.items()), columns = ['Station', 'Income'])
+#sorted the values in descending order
+station_df = station_df.sort_values(by = 'Income', ascending = False)
+
+#had to use the with open function to write this to the csv, since there were
+#two dataframes to be written. If i tried it without this, only one dataframe
+#would be written into the file
+with open('income_from_casual_users.csv', 'w') as f:
+    monthly_df.to_csv(f, index = False)
+    station_df.to_csv(f, index = False)
